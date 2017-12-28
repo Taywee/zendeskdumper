@@ -1,0 +1,26 @@
+#!/usr/bin/env ruby
+# Copyright © 2017 Taylor C. Richberger <taywee@gmx.com>
+# This code is released under the license described in the LICENSE file
+
+require 'optparse'
+
+require 'zendeskdumper/meta'
+
+def main!
+  options = {}
+  OptionParser.new do |opts|
+    opts.banner = "Usage: zendeskdumper [options] DOMAIN"
+
+    opts.on_tail("-h", "--help", "Show this help message") do
+      puts opts
+      exit
+    end
+    opts.on_tail("-v", "--version", "Show the version") do
+      puts ZenDeskDumper::Meta::VERSION
+      exit
+    end
+  end.parse!
+end
+
+
+main! if __FILE__ == $0
