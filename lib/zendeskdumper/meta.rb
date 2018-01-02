@@ -3,7 +3,7 @@
 module ZenDeskDumper
   module Meta
     NAME = 'zendeskdumper'
-    VERSION = '0.1.0'
+    VERSION = '0.1.4'
     DATE = '2018-01-02'
     SUMMARY = 'A simple dumper for a ZenDesk domain.'
     DESCRIPTION = 'A simple dumper for a ZenDesk domain.  Attempts to pull all users, tickets, comments, and attachments'
@@ -16,5 +16,8 @@ module ZenDeskDumper
     ]
     HOMEPAGE = 'https://rubygems.org/gem/zendeskdumper'
     LICENSE = 'MIT'
+    EXECUTABLES = [
+      'zendeskdumper'
+    ]
   end
 end
