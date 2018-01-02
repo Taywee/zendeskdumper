@@ -55,7 +55,9 @@ module ZenDeskDumper
         http.request request
       end
       if Integer(response.code) == 429
-        time = Integer(response['Retry-After']) + 5
+        # Make sure to allow some decent grace period
+        time = Integer(response['Retry-After']) + 60
+        @logger.debug "Hitting rate limiting, sleeping for #{time} seconds"
         sleep time
         return get uri
       end
@@ -91,8 +93,11 @@ module ZenDeskDumper
         yield body, pagenumber
         next_page = body['next_page']
         break if next_page.nil?
+        # If the next_page was the same as this one, it will loop forever
+        next_uri = URI(next_page)
+        break if uri == next_uri
 
-        uri = URI(next_page)
+        uri = next_uri
         pagenumber += 1
       end
     end
@@ -111,7 +116,7 @@ module ZenDeskDumper
         checkthreads(page['users']) do |user|
           begin
             dump_user(user['id'], &block)
-          rescue Net::HTTPNotFound
+          rescue Net::HTTPServerException
             @logger.error "could not find user #{user}"
           end
         end
@@ -139,7 +144,7 @@ module ZenDeskDumper
         checkthreads(page['organizations']) do |organization|
           begin
             dump_organization(organization['id'], &block)
-          rescue Net::HTTPNotFound
+          rescue Net::HTTPServerException
             @logger.error "could not find organization #{organization}"
           end
         end
@@ -167,7 +172,7 @@ module ZenDeskDumper
         checkthreads(page['tickets']) do |ticket|
           begin
             dump_ticket(ticket['id'], &block)
-          rescue Net::HTTPNotFound
+          rescue Net::HTTPServerException
             @logger.error "could not find ticket #{ticket}"
           end
         end
@@ -188,8 +193,6 @@ module ZenDeskDumper
       getpages uri do |page, pagenum|
         path = basepath + 'comments-%03d.json' % pagenum
         yield path, JSON.fast_generate(page)
-        @logger.debug "page: #{page}"
-        @logger.debug "page['comments']: #{page['comments']}"
         page['comments'].each do |comment|
           comment['attachments'].each do |attachment|
             basepath = Pathname.new('attachments') + attachment['id'].to_s
@@ -198,7 +201,7 @@ module ZenDeskDumper
             begin
               @logger.debug "getting attachment file #{basepath + 'files' + attachment['file_name']}"
               yield basepath + 'files' + attachment['file_name'], get_attachment(URI(attachment['content_url']))
-            rescue Net::HTTPNotFound
+            rescue Net::HTTPServerException
               @logger.error "could not find attachment file #{attachment}"
             end
           end
