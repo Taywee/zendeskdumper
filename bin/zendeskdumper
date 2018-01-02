@@ -2,24 +2,81 @@
 # Copyright © 2017 Taylor C. Richberger <taywee@gmx.com>
 # This code is released under the license described in the LICENSE file
 
+require 'logger'
 require 'optparse'
+require 'pathname'
+require 'set'
+require 'yaml'
 
+require 'zendeskdumper'
 require 'zendeskdumper/meta'
 
-def main!
-  options = {}
-  OptionParser.new do |opts|
-    opts.banner = "Usage: zendeskdumper [options] DOMAIN"
 
-    opts.on_tail("-h", "--help", "Show this help message") do
-      puts opts
-      exit
+def main!
+  options = {directory: Pathname.new('.')}
+
+  opts = OptionParser.new
+  def opts.abort(output, code: 1)
+      STDERR.puts "ERROR: #{output}"
+      STDERR.puts self
+      exit code
+  end
+
+  opts.banner = 'Usage: zendeskdumper [options] DOMAIN'
+  opts.version = ZenDeskDumper::Meta::VERSION
+
+  opts.on_tail('-h', '--help', 'Show this help message') do
+    puts opts
+    exit
+  end
+  opts.on_tail('-V', '--version', 'Show the version') do
+    puts opts.version
+    exit
+  end
+
+  opts.on('-u', '--user USERNAME:PASSWORD', 'Specify username and password') do |user|
+    unless user.include? ':'
+      opts.abort '-u, --user needs at least one colon'
     end
-    opts.on_tail("-v", "--version", "Show the version") do
-      puts ZenDeskDumper::Meta::VERSION
-      exit
+
+    options.update([:username, :password].zip(user.split(':', 2)).to_h)
+  end
+  opts.on('-c', '--credentials FILE', 'Credentials YAML file with username and password fields') do |filename|
+    set = Set[:username, :password]
+    # Should only update username and password
+    options.update(YAML.load_file(filename).select {|key| set.include? key})
+  end
+  opts.on('-d', '--directory DIR', 'Directory to dump the files (default: .)') do |dir|
+    options[:directory] = Pathname.new(dir)
+  end
+  opts.parse!
+
+  if ARGV.empty?
+    opts.abort 'ERROR: DOMAIN is mandatory'
+  end
+
+  unless options.key? :username and options.key? :password 
+    opts.abort 'Credentials must be specified with either -u or -c, and must specify username and password'
+  end
+
+  domain = ARGV.pop
+
+  logger = Logger.new(STDERR)
+
+  ZenDeskDumper::Dumper.new(
+    username: options[:username],
+    password: options[:password],
+    domain: domain,
+  ).dump do |filename, content|
+    path = options[:directory] + filename
+    dir = path.dirname
+    unless dir.directory?
+      logger.info "creating #{dir}"
+      dir.mkpath
     end
-  end.parse!
+    logger.info "dumping #{path}"
+    File::write(path, content)
+  end
 end
 
 
