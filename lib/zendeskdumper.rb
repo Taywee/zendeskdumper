@@ -116,7 +116,7 @@ module ZenDeskDumper
         checkthreads(page['users']) do |user|
           begin
             dump_user(user['id'], &block)
-          rescue Net::HTTPServerException
+          rescue Net::HTTPServerException, Net::HTTPFatalError
             @logger.error "could not find user #{user}"
           end
         end
@@ -144,7 +144,7 @@ module ZenDeskDumper
         checkthreads(page['organizations']) do |organization|
           begin
             dump_organization(organization['id'], &block)
-          rescue Net::HTTPServerException
+          rescue Net::HTTPServerException, Net::HTTPFatalError
             @logger.error "could not find organization #{organization}"
           end
         end
@@ -172,7 +172,7 @@ module ZenDeskDumper
         checkthreads(page['tickets']) do |ticket|
           begin
             dump_ticket(ticket['id'], &block)
-          rescue Net::HTTPServerException
+          rescue Net::HTTPServerException, Net::HTTPFatalError
             @logger.error "could not find ticket #{ticket}"
           end
         end
@@ -201,7 +201,7 @@ module ZenDeskDumper
             begin
               @logger.debug "getting attachment file #{basepath + 'files' + attachment['file_name']}"
               yield basepath + 'files' + attachment['file_name'], get_attachment(URI(attachment['content_url']))
-            rescue Net::HTTPServerException
+            rescue Net::HTTPServerException, Net::HTTPFatalError
               @logger.error "could not find attachment file #{attachment}"
             end
           end
