@@ -33,17 +33,11 @@ module ZenDeskDumper
     # Run a list of items, yield to the block, and join on the thread limit (and
     # before finishing
     def checkthreads(list)
-      threads = []
-      list.each do |item|
-        threads << Thread.new do
-          yield item
-        end
-        if threads.size >= @threadlimit
-          threads.each(&:join)
-          threads = []
-        end
+      list.each_slice(@threadlimit) do |items|
+        items.map do |item|
+          Thread.new { yield item}
+        end.each(&:join)
       end
-      threads.each(&:join)
     end
 
     # Get method which runs requests and optionally sleeps if necessary based on
